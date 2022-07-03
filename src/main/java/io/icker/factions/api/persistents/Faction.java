@@ -8,47 +8,53 @@ import io.icker.factions.database.Name;
 import io.icker.factions.util.Message;
 import net.minecraft.inventory.SimpleInventory;
 import net.minecraft.util.Formatting;
+import org.jetbrains.annotations.Contract;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 
+import static io.icker.factions.api.events.FactionEvents.*;
+
 @Name("Faction")
 public class Faction {
-    private static final HashMap<UUID, Faction> STORE = Database.load(Faction.class, f -> f.getID());
+    //region Constants
+    public static final String DEFAULT_DESCRIPTION = "No description set";
+    public static final String DEFAULT_MOTD = "No faction MOTD set";
+
+    private static final HashMap<UUID, Faction> STORE = Database.load(Faction.class, Faction::getID);
+    //endregion
+
 
     @Field("ID")
-    private UUID id;
-
+    private final UUID id;
+    @Field("Invites")
+    public ArrayList<UUID> invites = new ArrayList<>();
     @Field("Name")
     private String name;
-
     @Field("Description")
     private String description;
-
     @Field("MOTD")
     private String motd;
-
     @Field("Color")
     private String color;
-
     @Field("Open")
     private boolean open;
-
     @Field("Power")
     private int power;
-
     @Field("Home")
     private Home home;
-
     @Field("Safe")
     private SimpleInventory safe = new SimpleInventory(54);
-
-    @Field("Invites")
-    public ArrayList<UUID> invites = new ArrayList<UUID>();
-
     @Field("Relationships")
-    private ArrayList<Relationship> relationships = new ArrayList<Relationship>();
+    private ArrayList<Relationship> relationships = new ArrayList<>();
 
-    public Faction(String name, String description, String motd, Formatting color, boolean open, int power) {
+    public Faction(@NotNull final String name,
+                   @NotNull final String description,
+                   @NotNull final String motd,
+                   @NotNull final Formatting color,
+                   final boolean open,
+                   final int power) {
         this.id = UUID.randomUUID();
         this.name = name;
         this.motd = motd;
@@ -58,48 +64,61 @@ public class Faction {
         this.power = power;
     }
 
-    public Faction() { ; }
+//    NOTE(CamperSamu): Why does this exist?
+//    public Faction() {}
 
-    public String getKey() {
-        return id.toString();
-    }
-
-    public static Faction get(UUID id) {
+    public static @Nullable Faction get(@NotNull final UUID id) {
         return STORE.get(id);
     }
 
-    public static Faction getByName(String name) {
+    public static @Nullable Faction getByName(@NotNull final String name) {
         return STORE.values()
-            .stream()
-            .filter(f -> f.name.equals(name))
-            .findFirst()
-            .orElse(null);
+                .stream()
+                .filter(f -> f.name.equals(name))
+                .findFirst()
+                .orElse(null);
     }
 
-    public static void add(Faction faction) {
+    public static void add(@NotNull final Faction faction) {
         STORE.put(faction.id, faction);
     }
 
-    public static Collection<Faction> all() {
+    @Contract(pure = true)
+    public static @NotNull Collection<Faction> all() {
         return STORE.values();
     }
 
+    @SuppressWarnings("unused") //Util method
     public static List<Faction> allBut(UUID id) {
         return STORE.values()
-            .stream()
-            .filter(f -> f.id != id)
-            .toList();
+                .stream()
+                .filter(f -> f.id != id)
+                .toList();
     }
 
-    public UUID getID() {
+    public static void save() {
+        Database.save(Faction.class, STORE.values().stream().toList());
+    }
+
+    @SuppressWarnings("unused") //Util method
+    public @NotNull String getKey() {
+        return id.toString();
+    }
+
+    public @NotNull UUID getID() {
         return id;
     }
 
-    public String getName() {
+    public @NotNull String getName() {
         return name;
     }
 
-    public Message getTruncatedName() {
+    public void setName(@NotNull final String name) {
+        this.name = name;
+        MODIFY.invoker().onModify(this);
+    }
+
+    public @NotNull Message getTruncatedName() {
         boolean overLength = FactionsMod.CONFIG.NAME_MAX_LENGTH > -1 && name.length() > FactionsMod.CONFIG.NAME_MAX_LENGTH;
         Message displayName = new Message(overLength ? name.substring(0, FactionsMod.CONFIG.NAME_MAX_LENGTH - 1) + "..." : name);
         if (overLength) {
@@ -108,27 +127,47 @@ public class Faction {
         return displayName;
     }
 
-    public Formatting getColor() {
-        return Formatting.byName(color);
+    public @NotNull Formatting getColor() {
+        final var c = Formatting.byName(color);
+        return c != null ? c : Formatting.WHITE;
     }
 
-    public String getDescription() {
+    public void setColor(final Formatting color) {
+        if (color != null) this.color = color.getName();
+        else this.color = Formatting.WHITE.getName();
+        MODIFY.invoker().onModify(this);
+    }
+
+    public @NotNull String getDescription() {
         return description;
     }
 
-    public String getMOTD() {
+    public void setDescription(final String description) {
+        if (description != null) this.description = description;
+        else this.description = DEFAULT_DESCRIPTION;
+        MODIFY.invoker().onModify(this);
+    }
+
+    public @NotNull String getMOTD() {
         return motd;
+    }
+
+    public void setMOTD(final String motd) {
+        if (motd != null) this.motd = motd;
+        else this.motd = DEFAULT_MOTD;
+        MODIFY.invoker().onModify(this);
     }
 
     public int getPower() {
         return power;
     }
 
-    public SimpleInventory getSafe() {
+    public @NotNull SimpleInventory getSafe() {
         return safe;
     }
 
-    public void setSafe(SimpleInventory safe) {
+    @SuppressWarnings("unused") //Util method
+    public void setSafe(@NotNull final SimpleInventory safe) {
         this.safe = safe;
     }
 
@@ -136,32 +175,12 @@ public class Faction {
         return open;
     }
 
-    public void setName(String name) {
-        this.name = name;
-        FactionEvents.MODIFY.invoker().onModify(this);
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-        FactionEvents.MODIFY.invoker().onModify(this);
-    }
-
-    public void setMOTD(String motd) {
-        this.motd = motd;
-        FactionEvents.MODIFY.invoker().onModify(this);
-    }
-
-    public void setColor(Formatting color) {
-        this.color = color.getName();
-        FactionEvents.MODIFY.invoker().onModify(this);
-    }
-
-    public void setOpen(boolean open) {
+    public void setOpen(final boolean open) {
         this.open = open;
-        FactionEvents.MODIFY.invoker().onModify(this);
+        MODIFY.invoker().onModify(this);
     }
 
-    public int adjustPower(int adjustment) {
+    public int adjustPower(final int adjustment) {
         int maxPower = FactionsMod.CONFIG.POWER.BASE + (getUsers().size() * FactionsMod.CONFIG.POWER.MEMBER);
         int newPower = Math.min(Math.max(0, power + adjustment), maxPower);
         int oldPower = this.power;
@@ -173,88 +192,84 @@ public class Faction {
         return Math.abs(newPower - oldPower);
     }
 
-    public List<User> getUsers() {
+    public @NotNull List<User> getUsers() {
         return User.getByFaction(id);
     }
 
-    public List<Claim> getClaims() {
+    public @NotNull List<Claim> getClaims() {
         return Claim.getByFaction(id);
     }
 
     public void removeAllClaims() {
-        Claim.getByFaction(id)
-            .stream()
-            .forEach(c -> c.remove());
-        FactionEvents.REMOVE_ALL_CLAIMS.invoker().onRemoveAllClaims(this);
+        getClaims()
+                .forEach(Claim::remove);
+        REMOVE_ALL_CLAIMS.invoker().onRemoveAllClaims(this);
     }
 
-    public void addClaim(int x, int z, String level) {
+    public void addClaim(final int x, final int z, @NotNull final String level) {
         Claim.add(new Claim(x, z, level, id));
     }
 
-    public boolean isInvited(UUID playerID) {
+    public boolean isInvited(@NotNull final UUID playerID) {
         return invites.stream().anyMatch(invite -> invite.equals(playerID));
     }
 
-    public Home getHome() {
+    public @Nullable Home getHome() {
         return home;
     }
 
-    public void setHome(Home home) {
+    public void setHome(@Nullable final Home home) {
         this.home = home;
-        FactionEvents.SET_HOME.invoker().onSetHome(this, home);
+        SET_HOME.invoker().onSetHome(this, home);
     }
 
-    public Relationship getRelationship(UUID target) {
+    public @NotNull Relationship getRelationship(@NotNull final UUID target) {
         return relationships.stream().filter(rel -> rel.target.equals(target)).findFirst().orElse(new Relationship(target, Relationship.Status.NEUTRAL));
     }
 
-    public Relationship getReverse(Relationship rel) {
-        return Faction.get(rel.target).getRelationship(id);
+    public @NotNull Relationship getReverse(@NotNull Relationship rel) {
+        final var target = Faction.get(rel.target);
+        if (target != null) return target.getRelationship(id);
+        else return new Relationship(id, Relationship.Status.NEUTRAL);
     }
 
-    public boolean isMutualAllies(UUID target) {
-        Relationship rel = getRelationship(target);
+    public boolean isMutualAllies(@NotNull final UUID target) {
+        final Relationship rel = getRelationship(target);
         return rel.status == Relationship.Status.ALLY && getReverse(rel).status == Relationship.Status.ALLY;
     }
 
-    public List<Relationship> getMutualAllies() {
+    public @NotNull List<Relationship> getMutualAllies() {
         return relationships.stream().filter(rel -> isMutualAllies(rel.target)).toList();
     }
 
-    public List<Relationship> getEnemiesWith() {
+    public @NotNull List<Relationship> getEnemiesWith() {
         return relationships.stream().filter(rel -> rel.status == Relationship.Status.ENEMY).toList();
     }
 
-    public List<Relationship> getEnemiesOf() {
+    public @NotNull List<Relationship> getEnemiesOf() {
         return relationships.stream().filter(rel -> getReverse(rel).status == Relationship.Status.ENEMY).toList();
     }
 
-    public void removeRelationship(UUID target) {
+    public void removeRelationship(@NotNull final UUID target) {
         relationships = new ArrayList<>(relationships.stream().filter(rel -> !rel.target.equals(target)).toList());
     }
 
-    public void setRelationship(Relationship relationship) {
-        if (getRelationship(relationship.target) != null) {
-            removeRelationship(relationship.target);
-        }
+    public void setRelationship(@NotNull final Relationship relationship) {
+        removeRelationship(relationship.target);
         if (relationship.status != Relationship.Status.NEUTRAL)
             relationships.add(relationship);
     }
 
     public void remove() {
-        for (User user : getUsers()) {
+        for (final User user : getUsers()) {
             user.leaveFaction();
         }
-        for (Relationship rel : relationships) {
-            Faction.get(rel.target).removeRelationship(id);
+        for (final Relationship rel : relationships) {
+            final var faction = Faction.get(rel.target);
+            if (faction != null) faction.removeRelationship(id);
         }
         removeAllClaims();
         STORE.remove(id);
-        FactionEvents.DISBAND.invoker().onDisband(this);
-    }
-
-    public static void save() {
-        Database.save(Faction.class, STORE.values().stream().toList());
+        DISBAND.invoker().onDisband(this);
     }
 }

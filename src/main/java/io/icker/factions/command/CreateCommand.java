@@ -2,7 +2,6 @@ package io.icker.factions.command;
 
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
-import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.tree.LiteralCommandNode;
 import io.icker.factions.FactionsMod;
 import io.icker.factions.api.persistents.Faction;
@@ -16,8 +15,11 @@ import net.minecraft.util.Formatting;
 
 import java.util.Locale;
 
+import static io.icker.factions.api.persistents.Faction.DEFAULT_DESCRIPTION;
+import static io.icker.factions.api.persistents.Faction.DEFAULT_MOTD;
+
 public class CreateCommand implements Command {
-    private int run(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+    private int run(CommandContext<ServerCommandSource> context) {
         String name = StringArgumentType.getString(context, "name");
 
         ServerCommandSource source = context.getSource();
@@ -33,7 +35,7 @@ public class CreateCommand implements Command {
             return 0;
         }
 
-        Faction faction = new Faction(name, "No description set", "No faction MOTD set", Formatting.WHITE, false, FactionsMod.CONFIG.POWER.BASE + FactionsMod.CONFIG.POWER.MEMBER);
+        Faction faction = new Faction(name, DEFAULT_DESCRIPTION, DEFAULT_MOTD, Formatting.WHITE, false, FactionsMod.CONFIG.POWER.BASE + FactionsMod.CONFIG.POWER.MEMBER);
         Faction.add(faction);
         Command.getUser(player).joinFaction(faction.getID(), User.Rank.OWNER);
 
