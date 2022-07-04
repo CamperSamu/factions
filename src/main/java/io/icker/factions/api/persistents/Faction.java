@@ -32,20 +32,28 @@ public class Faction {
     public ArrayList<UUID> invites = new ArrayList<>();
     @Field("Name")
     private String name;
+
     @Field("Description")
     private String description;
+
     @Field("MOTD")
     private String motd;
+
     @Field("Color")
     private String color;
+
     @Field("Open")
     private boolean open;
+
     @Field("Power")
     private int power;
+
     @Field("Home")
     private Home home;
+
     @Field("Safe")
     private SimpleInventory safe = new SimpleInventory(54);
+    
     @Field("Relationships")
     private ArrayList<Relationship> relationships = new ArrayList<>();
 
@@ -181,8 +189,7 @@ public class Faction {
     }
 
     public int adjustPower(final int adjustment) {
-        int maxPower = FactionsMod.CONFIG.POWER.BASE + (getUsers().size() * FactionsMod.CONFIG.POWER.MEMBER);
-        int newPower = Math.min(Math.max(0, power + adjustment), maxPower);
+        int newPower = Math.min(Math.max(0, power + adjustment), calculateMaxPower());
         int oldPower = this.power;
 
         if (newPower == oldPower) return 0;
@@ -223,7 +230,7 @@ public class Faction {
         SET_HOME.invoker().onSetHome(this, home);
     }
 
-    public @NotNull Relationship getRelationship(@NotNull final UUID target) {
+    public Relationship getRelationship(UUID target) {
         return relationships.stream().filter(rel -> rel.target.equals(target)).findFirst().orElse(new Relationship(target, Relationship.Status.NEUTRAL));
     }
 
@@ -271,5 +278,10 @@ public class Faction {
         removeAllClaims();
         STORE.remove(id);
         DISBAND.invoker().onDisband(this);
+    }
+
+//  TODO(samu): import per-player power patch
+    public int calculateMaxPower(){
+        return FactionsMod.CONFIG.POWER.BASE + (getUsers().size() * FactionsMod.CONFIG.POWER.MEMBER);
     }
 }
